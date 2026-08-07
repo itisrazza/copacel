@@ -74,6 +74,7 @@ struct ContentView: View {
                 switch viewModel.state {
                 case .scanning(let count):
                     ProgressView("Scanning… \(count) items")
+                        .controlSize(.small)
                 case .failed(let message):
                     Label("Scan failed: \(message)", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.red)

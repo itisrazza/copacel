@@ -69,8 +69,19 @@ struct TreemapView: View {
         let color = ColorAssignment.color(forExtension: tile.node.fileExtension ?? "")
         let isSelected = selection?.id == tile.node.id
         let isDimmed = highlightedExtension != nil && highlightedExtension != (tile.node.fileExtension ?? "")
-        let path = Path(tile.rect.insetBy(dx: 0.5, dy: 0.5))
         context.opacity = isDimmed ? 0.25 : 1
+
+        // A directory with hundreds of thousands of files can produce tiles just a few
+        // points wide. Insetting/stroking those would eat the fill entirely, so below a
+        // small size just fill the tile flush instead — better a borderless speck than
+        // nothing visible at all.
+        guard tile.rect.width >= 3, tile.rect.height >= 3 else {
+            context.fill(Path(tile.rect), with: .color(color))
+            context.opacity = 1
+            return
+        }
+
+        let path = Path(tile.rect.insetBy(dx: 0.5, dy: 0.5))
         context.fill(path, with: .color(color))
         context.stroke(path, with: .color(isSelected ? .white : .black.opacity(0.35)), lineWidth: isSelected ? 2 : 0.5)
         context.opacity = 1

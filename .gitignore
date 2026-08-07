@@ -1,0 +1,14 @@
+# xcodegen-generated project (regenerate with `xcodegen generate`)
+*.xcodeproj/
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ExtensionLegendView: View {
     var stats: [ExtensionStat]
+    @Binding var selectedExtension: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,6 +23,17 @@ struct ExtensionLegendView: View {
                         .frame(width: 80, alignment: .trailing)
                 }
                 .font(.system(size: 12))
+                .padding(.vertical, 2)
+                .padding(.horizontal, 4)
+                .background(
+                    selectedExtension == stat.fileExtension ? Color.accentColor.opacity(0.2) : .clear,
+                    in: RoundedRectangle(cornerRadius: 4)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Toggle: clicking the already-selected row clears the highlight.
+                    selectedExtension = (selectedExtension == stat.fileExtension) ? nil : stat.fileExtension
+                }
             }
             .listStyle(.inset)
         }

@@ -22,6 +22,9 @@ final class ScanViewModel {
     }
     private(set) var permissionDeniedCount = 0
     var selectedNode: FileNode?
+    /// Extension clicked in the legend, to highlight matching tiles in the treemap. Distinct
+    /// from `selectedNode`, since this is a "highlight all of this type" filter, not a pick.
+    var selectedExtension: String?
 
     var sortKey: FileSortKey = .physicalSize {
         didSet { refreshDerivedState() }

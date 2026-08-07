@@ -4,6 +4,7 @@ import SwiftUI
 struct TreemapView: View {
     var root: FileNode
     var selection: FileNode?
+    var highlightedExtension: String?
     var onSelect: (FileNode) -> Void
     var onDrillDown: (FileNode) -> Void
 
@@ -59,9 +60,12 @@ struct TreemapView: View {
     private func draw(tile: TreemapTile, in context: inout GraphicsContext) {
         let color = ColorAssignment.color(forExtension: tile.node.fileExtension ?? "")
         let isSelected = selection?.id == tile.node.id
+        let isDimmed = highlightedExtension != nil && highlightedExtension != (tile.node.fileExtension ?? "")
         let path = Path(tile.rect.insetBy(dx: 0.5, dy: 0.5))
+        context.opacity = isDimmed ? 0.25 : 1
         context.fill(path, with: .color(color))
         context.stroke(path, with: .color(isSelected ? .white : .black.opacity(0.35)), lineWidth: isSelected ? 2 : 0.5)
+        context.opacity = 1
     }
 
     private func tile(at point: CGPoint, in tiles: [TreemapTile]) -> TreemapTile? {

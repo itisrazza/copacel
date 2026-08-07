@@ -71,7 +71,7 @@ struct ContentView: View {
                     )
                     .frame(minWidth: 360)
 
-                    ExtensionLegendView(stats: viewModel.extensionStats)
+                    ExtensionLegendView(stats: viewModel.extensionStats, selectedExtension: $viewModel.selectedExtension)
                         .frame(minWidth: 220, idealWidth: 260)
                 }
                 .frame(minHeight: 200)
@@ -79,6 +79,7 @@ struct ContentView: View {
                 TreemapView(
                     root: treemapRoot,
                     selection: viewModel.selectedNode,
+                    highlightedExtension: viewModel.selectedExtension,
                     onSelect: { viewModel.selectedNode = $0 },
                     onDrillDown: { viewModel.drillDown(into: $0) }
                 )

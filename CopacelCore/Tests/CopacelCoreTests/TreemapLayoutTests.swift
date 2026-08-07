@@ -21,6 +21,19 @@ import Testing
     }
 }
 
+@Test func squarifyProducesNonOverlappingTiles() {
+    let sizes: [Double] = [55, 47, 41, 33, 28, 19, 12, 9, 6, 4, 2]
+    let tiles = TreemapLayout.squarify(items: sizes, size: { $0 }, in: CGRect(x: 0, y: 0, width: 300, height: 180))
+
+    for i in 0..<tiles.count {
+        for j in (i + 1)..<tiles.count where j > i {
+            let intersection = tiles[i].rect.intersection(tiles[j].rect)
+            // Shared edges (zero-area intersections) are expected; overlapping area is not.
+            #expect(intersection.isNull || intersection.width * intersection.height < 0.001)
+        }
+    }
+}
+
 @Test func squarifyDropsZeroAndNegativeSizedItems() {
     let sizes: [Double] = [10, 0, -5, 20]
     let tiles = TreemapLayout.squarify(items: sizes, size: { $0 }, in: CGRect(x: 0, y: 0, width: 100, height: 100))

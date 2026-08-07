@@ -13,14 +13,33 @@ final class ScanViewModel {
     }
 
     private(set) var state: ScanState = .idle
-    private(set) var rootNode: FileNode?
+    private(set) var rootNode: FileNode? {
+        didSet { refreshDisplayRoot() }
+    }
     private(set) var rootURL: URL?
-    private(set) var navigationStack: [FileNode] = []
+    private(set) var navigationStack: [FileNode] = [] {
+        didSet { refreshDisplayRoot() }
+    }
     private(set) var permissionDeniedCount = 0
     var selectedNode: FileNode?
 
+    var sortKey: FileSortKey = .physicalSize {
+        didSet { refreshDisplayRoot() }
+    }
+    var sortAscending = false {
+        didSet { refreshDisplayRoot() }
+    }
+
     /// The directory currently shown in the list/treemap — the drill-down target, or the scan root.
     var currentRoot: FileNode? { navigationStack.last ?? rootNode }
+
+    /// `currentRoot`, sorted at every level per `sortKey`/`sortAscending`. Cached on change
+    /// rather than recomputed per SwiftUI body evaluation, since sorting a large tree isn't free.
+    private(set) var displayRoot: FileNode?
+
+    private func refreshDisplayRoot() {
+        displayRoot = currentRoot?.sorted(by: sortKey, ascending: sortAscending)
+    }
 
     private let scanner = DirectoryScanner()
     private var scanTask: Task<Void, Never>?

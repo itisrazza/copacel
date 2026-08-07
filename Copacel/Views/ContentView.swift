@@ -5,18 +5,12 @@ struct ContentView: View {
     @State private var isChoosingFolder = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Copăcel")
-                .font(.title)
-
-            Button("Choose Folder…") {
-                isChoosingFolder = true
-            }
-
-            statusView
+        VStack(spacing: 0) {
+            toolbar
+            Divider()
+            content
         }
-        .padding()
-        .frame(minWidth: 360, minHeight: 200)
+        .frame(minWidth: 640, minHeight: 400)
         .fileImporter(isPresented: $isChoosingFolder, allowedContentTypes: [.folder]) { result in
             if let url = try? result.get() {
                 viewModel.scan(root: url)
@@ -24,29 +18,62 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private var statusView: some View {
-        switch viewModel.state {
-        case .idle:
-            Text("No scan yet")
-                .foregroundStyle(.secondary)
-        case .scanning(let scannedCount):
-            ProgressView("Scanning… \(scannedCount) items")
-        case .completed:
-            if let root = viewModel.rootNode {
-                VStack(alignment: .leading) {
-                    Text(root.name).bold()
-                    Text("\(root.fileCount) files, \(ByteCountFormatter.string(fromByteCount: root.physicalSize, countStyle: .file))")
-                        .foregroundStyle(.secondary)
-                    if viewModel.permissionDeniedCount > 0 {
-                        Text("\(viewModel.permissionDeniedCount) folders skipped (permission denied)")
-                            .foregroundStyle(.orange)
-                    }
+    private var toolbar: some View {
+        HStack {
+            Button("Choose Folder…") { isChoosingFolder = true }
+
+            if !viewModel.navigationStack.isEmpty {
+                Button {
+                    viewModel.drillUp(to: viewModel.navigationStack.dropLast().last)
+                } label: {
+                    Label("Up", systemImage: "arrow.up")
                 }
             }
-        case .failed(let message):
-            Text("Scan failed: \(message)")
-                .foregroundStyle(.red)
+
+            Spacer()
+
+            switch viewModel.state {
+            case .scanning(let count):
+                ProgressView("Scanning… \(count) items")
+            case .failed(let message):
+                Text("Scan failed: \(message)").foregroundStyle(.red)
+            default:
+                EmptyView()
+            }
+        }
+        .padding(8)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let root = viewModel.displayRoot {
+            FileListView(
+                root: root,
+                totalSize: root.physicalSize,
+                selection: $viewModel.selectedNode,
+                sortKey: viewModel.sortKey,
+                sortAscending: viewModel.sortAscending,
+                onChangeSort: { key in
+                    if viewModel.sortKey == key {
+                        viewModel.sortAscending.toggle()
+                    } else {
+                        viewModel.sortKey = key
+                        viewModel.sortAscending = false
+                    }
+                },
+                onDoubleClick: { node in
+                    if node.isDirectory {
+                        viewModel.drillDown(into: node)
+                    }
+                }
+            )
+        } else {
+            VStack {
+                Spacer()
+                Text("Choose a folder to scan")
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
         }
     }
 }

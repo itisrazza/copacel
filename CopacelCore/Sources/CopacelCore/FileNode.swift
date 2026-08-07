@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Sizes and ``fileCount`` are aggregated bottom-up at scan time, so reading
 /// them is O(1) — nothing needs to walk `children` again.
-public struct FileNode: Identifiable, Sendable, Hashable {
+public struct FileNode: Identifiable, Sendable {
     public let url: URL
     public let name: String
     public let isDirectory: Bool
@@ -41,4 +41,13 @@ public struct FileNode: Identifiable, Sendable, Hashable {
         let ext = url.pathExtension
         return ext.isEmpty ? nil : ext.lowercased()
     }
+}
+
+extension FileNode: Equatable, Hashable {
+    // `url` (== `id`) is unique per scan, so identity-based conformances are both
+    // correct and far cheaper than the synthesized structural ones, which would
+    // otherwise deep-compare/hash entire subtrees on every SwiftUI selection change.
+    public static func == (lhs: FileNode, rhs: FileNode) -> Bool { lhs.url == rhs.url }
+
+    public func hash(into hasher: inout Hasher) { hasher.combine(url) }
 }

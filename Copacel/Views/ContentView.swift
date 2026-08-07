@@ -5,16 +5,24 @@ struct ContentView: View {
     @State private var viewModel = ScanViewModel()
     @State private var isChoosingFolder = false
     @State private var pendingDeletion: FileNode?
+    @State private var dismissedFullDiskAccessTip = false
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             Divider()
+            if viewModel.permissionDeniedCount > 0, !dismissedFullDiskAccessTip {
+                FullDiskAccessTipView(deniedCount: viewModel.permissionDeniedCount) {
+                    dismissedFullDiskAccessTip = true
+                }
+                Divider()
+            }
             content
         }
         .frame(minWidth: 640, minHeight: 400)
         .fileImporter(isPresented: $isChoosingFolder, allowedContentTypes: [.folder]) { result in
             if let url = try? result.get() {
+                dismissedFullDiskAccessTip = false
                 viewModel.scan(root: url)
             }
         }

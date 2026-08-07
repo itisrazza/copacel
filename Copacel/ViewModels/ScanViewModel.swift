@@ -17,7 +17,9 @@ final class ScanViewModel {
         didSet { refreshDerivedState() }
     }
     private(set) var rootURL: URL?
-    private(set) var navigationStack: [FileNode] = [] {
+    /// Path of drilled-into directory URLs, resolved fresh against `rootNode` rather than
+    /// stored as snapshots — so it can never go stale after e.g. a delete updates the tree.
+    private(set) var navigationPath: [URL] = [] {
         didSet { refreshDerivedState() }
     }
     private(set) var permissionDeniedCount = 0
@@ -34,7 +36,24 @@ final class ScanViewModel {
     }
 
     /// The directory currently shown in the list/treemap — the drill-down target, or the scan root.
-    var currentRoot: FileNode? { navigationStack.last ?? rootNode }
+    var currentRoot: FileNode? {
+        var node = rootNode
+        for url in navigationPath {
+            node = node?.children.first { $0.url == url }
+        }
+        return node
+    }
+
+    /// `rootNode` followed by the resolved node for each `navigationPath` entry, for breadcrumb UI.
+    var breadcrumbTrail: [FileNode] {
+        guard let rootNode else { return [] }
+        var trail = [rootNode]
+        for url in navigationPath {
+            guard let child = trail.last?.children.first(where: { $0.url == url }) else { break }
+            trail.append(child)
+        }
+        return trail
+    }
 
     /// `currentRoot`, sorted at every level per `sortKey`/`sortAscending`. Cached on change
     /// rather than recomputed per SwiftUI body evaluation, since sorting a large tree isn't free.
@@ -57,7 +76,7 @@ final class ScanViewModel {
         scanTask?.cancel()
         rootNode = nil
         rootURL = root
-        navigationStack = []
+        navigationPath = []
         selectedNode = nil
         permissionDeniedCount = 0
         state = .scanning(scannedCount: 0)
@@ -104,21 +123,31 @@ final class ScanViewModel {
 
     func drillDown(into node: FileNode) {
         guard node.isDirectory else { return }
-        navigationStack.append(node)
+        navigationPath.append(node.url)
         selectedNode = nil
     }
 
-    /// Pops the navigation stack back to `node`, or to the scan root if `node` is `nil`.
-    func drillUp(to node: FileNode?) {
-        guard let node else {
-            navigationStack = []
+    /// Pops the navigation path back to `url`, or to the scan root if `url` is `nil`.
+    func drillUp(to url: URL?) {
+        guard let url else {
+            navigationPath = []
             selectedNode = nil
             return
         }
-        if let index = navigationStack.firstIndex(where: { $0.id == node.id }) {
-            navigationStack = Array(navigationStack[0...index])
+        if let index = navigationPath.firstIndex(of: url) {
+            navigationPath = Array(navigationPath[0...index])
         }
         selectedNode = nil
+    }
+
+    /// Removes `node` (file or whole subtree) from the in-memory tree and re-aggregates
+    /// every ancestor's size/count, without a full rescan.
+    func removeFromTree(_ node: FileNode) {
+        guard let rootNode else { return }
+        self.rootNode = rootNode.removing(url: node.url)
+        if selectedNode?.id == node.id {
+            selectedNode = nil
+        }
     }
 }
 

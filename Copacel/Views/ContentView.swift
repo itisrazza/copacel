@@ -1,8 +1,10 @@
+import CopacelCore
 import SwiftUI
 
 struct ContentView: View {
     @State private var viewModel = ScanViewModel()
     @State private var isChoosingFolder = false
+    @State private var pendingDeletion: FileNode?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,15 +18,29 @@ struct ContentView: View {
                 viewModel.scan(root: url)
             }
         }
+        .confirmationDialog(
+            "Move to Trash?",
+            isPresented: Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } }),
+            presenting: pendingDeletion
+        ) { node in
+            Button("Move to Trash", role: .destructive) {
+                FileActions.moveToTrash(node) { viewModel.removeFromTree(node) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { node in
+            Text(node.isDirectory
+                ? "\"\(node.name)\" and everything inside it will be moved to the Trash."
+                : "\"\(node.name)\" will be moved to the Trash.")
+        }
     }
 
     private var toolbar: some View {
         HStack {
             Button("Choose Folder…") { isChoosingFolder = true }
 
-            if !viewModel.navigationStack.isEmpty {
+            if !viewModel.navigationPath.isEmpty {
                 Button {
-                    viewModel.drillUp(to: viewModel.navigationStack.dropLast().last)
+                    viewModel.drillUp(to: viewModel.navigationPath.dropLast().last)
                 } label: {
                     Label("Up", systemImage: "arrow.up")
                 }
@@ -67,7 +83,8 @@ struct ContentView: View {
                             if node.isDirectory {
                                 viewModel.drillDown(into: node)
                             }
-                        }
+                        },
+                        onRequestDelete: { pendingDeletion = $0 }
                     )
                     .frame(minWidth: 360)
 
@@ -81,7 +98,8 @@ struct ContentView: View {
                     selection: viewModel.selectedNode,
                     highlightedExtension: viewModel.selectedExtension,
                     onSelect: { viewModel.selectedNode = $0 },
-                    onDrillDown: { viewModel.drillDown(into: $0) }
+                    onDrillDown: { viewModel.drillDown(into: $0) },
+                    onRequestDelete: { pendingDeletion = $0 }
                 )
                 .frame(minHeight: 160)
             }

@@ -7,6 +7,7 @@ struct TreemapView: View {
     var highlightedExtension: String?
     var onSelect: (FileNode) -> Void
     var onDrillDown: (FileNode) -> Void
+    var onRequestDelete: (FileNode) -> Void
 
     @State private var hoveredTile: TreemapTile?
 
@@ -42,6 +43,13 @@ struct TreemapView: View {
                         hoveredTile = tile(at: location, in: tiles)
                     case .ended:
                         hoveredTile = nil
+                    }
+                }
+                .contextMenu {
+                    // Canvas has no per-shape hit testing for context menus, so this acts on
+                    // whichever tile the continuous-hover tracking last saw the cursor over.
+                    if let hoveredTile {
+                        fileContextMenu(for: hoveredTile.node, requestDelete: onRequestDelete)
                     }
                 }
 

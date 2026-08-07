@@ -26,6 +26,7 @@ struct FileListView: View {
     var sortAscending: Bool
     var onChangeSort: (FileSortKey) -> Void
     var onDoubleClick: (FileNode) -> Void
+    var onRequestDelete: (FileNode) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,6 +37,7 @@ struct FileListView: View {
                         .tag(node)
                         .contentShape(Rectangle())
                         .onTapGesture(count: 2) { onDoubleClick(node) }
+                        .contextMenu { fileContextMenu(for: node, requestDelete: onRequestDelete) }
                 }
             }
             .listStyle(.inset)

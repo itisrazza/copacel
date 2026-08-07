@@ -46,32 +46,43 @@ struct ContentView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let root = viewModel.displayRoot {
-            HSplitView {
-                FileListView(
-                    root: root,
-                    totalSize: root.physicalSize,
-                    selection: $viewModel.selectedNode,
-                    sortKey: viewModel.sortKey,
-                    sortAscending: viewModel.sortAscending,
-                    onChangeSort: { key in
-                        if viewModel.sortKey == key {
-                            viewModel.sortAscending.toggle()
-                        } else {
-                            viewModel.sortKey = key
-                            viewModel.sortAscending = false
+        if let root = viewModel.displayRoot, let treemapRoot = viewModel.currentRoot {
+            VSplitView {
+                HSplitView {
+                    FileListView(
+                        root: root,
+                        totalSize: root.physicalSize,
+                        selection: $viewModel.selectedNode,
+                        sortKey: viewModel.sortKey,
+                        sortAscending: viewModel.sortAscending,
+                        onChangeSort: { key in
+                            if viewModel.sortKey == key {
+                                viewModel.sortAscending.toggle()
+                            } else {
+                                viewModel.sortKey = key
+                                viewModel.sortAscending = false
+                            }
+                        },
+                        onDoubleClick: { node in
+                            if node.isDirectory {
+                                viewModel.drillDown(into: node)
+                            }
                         }
-                    },
-                    onDoubleClick: { node in
-                        if node.isDirectory {
-                            viewModel.drillDown(into: node)
-                        }
-                    }
-                )
-                .frame(minWidth: 360)
+                    )
+                    .frame(minWidth: 360)
 
-                ExtensionLegendView(stats: viewModel.extensionStats)
-                    .frame(minWidth: 220, idealWidth: 260)
+                    ExtensionLegendView(stats: viewModel.extensionStats)
+                        .frame(minWidth: 220, idealWidth: 260)
+                }
+                .frame(minHeight: 200)
+
+                TreemapView(
+                    root: treemapRoot,
+                    selection: viewModel.selectedNode,
+                    onSelect: { viewModel.selectedNode = $0 },
+                    onDrillDown: { viewModel.drillDown(into: $0) }
+                )
+                .frame(minHeight: 160)
             }
         } else {
             VStack {

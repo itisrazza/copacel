@@ -47,26 +47,32 @@ struct ContentView: View {
     @ViewBuilder
     private var content: some View {
         if let root = viewModel.displayRoot {
-            FileListView(
-                root: root,
-                totalSize: root.physicalSize,
-                selection: $viewModel.selectedNode,
-                sortKey: viewModel.sortKey,
-                sortAscending: viewModel.sortAscending,
-                onChangeSort: { key in
-                    if viewModel.sortKey == key {
-                        viewModel.sortAscending.toggle()
-                    } else {
-                        viewModel.sortKey = key
-                        viewModel.sortAscending = false
+            HSplitView {
+                FileListView(
+                    root: root,
+                    totalSize: root.physicalSize,
+                    selection: $viewModel.selectedNode,
+                    sortKey: viewModel.sortKey,
+                    sortAscending: viewModel.sortAscending,
+                    onChangeSort: { key in
+                        if viewModel.sortKey == key {
+                            viewModel.sortAscending.toggle()
+                        } else {
+                            viewModel.sortKey = key
+                            viewModel.sortAscending = false
+                        }
+                    },
+                    onDoubleClick: { node in
+                        if node.isDirectory {
+                            viewModel.drillDown(into: node)
+                        }
                     }
-                },
-                onDoubleClick: { node in
-                    if node.isDirectory {
-                        viewModel.drillDown(into: node)
-                    }
-                }
-            )
+                )
+                .frame(minWidth: 360)
+
+                ExtensionLegendView(stats: viewModel.extensionStats)
+                    .frame(minWidth: 220, idealWidth: 260)
+            }
         } else {
             VStack {
                 Spacer()

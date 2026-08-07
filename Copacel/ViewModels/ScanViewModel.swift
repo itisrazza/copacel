@@ -14,20 +14,20 @@ final class ScanViewModel {
 
     private(set) var state: ScanState = .idle
     private(set) var rootNode: FileNode? {
-        didSet { refreshDisplayRoot() }
+        didSet { refreshDerivedState() }
     }
     private(set) var rootURL: URL?
     private(set) var navigationStack: [FileNode] = [] {
-        didSet { refreshDisplayRoot() }
+        didSet { refreshDerivedState() }
     }
     private(set) var permissionDeniedCount = 0
     var selectedNode: FileNode?
 
     var sortKey: FileSortKey = .physicalSize {
-        didSet { refreshDisplayRoot() }
+        didSet { refreshDerivedState() }
     }
     var sortAscending = false {
-        didSet { refreshDisplayRoot() }
+        didSet { refreshDerivedState() }
     }
 
     /// The directory currently shown in the list/treemap — the drill-down target, or the scan root.
@@ -37,8 +37,14 @@ final class ScanViewModel {
     /// rather than recomputed per SwiftUI body evaluation, since sorting a large tree isn't free.
     private(set) var displayRoot: FileNode?
 
-    private func refreshDisplayRoot() {
-        displayRoot = currentRoot?.sorted(by: sortKey, ascending: sortAscending)
+    /// Per-extension totals for `currentRoot`'s subtree, for the legend panel. Recalculates
+    /// as you drill down, same as the list/treemap.
+    private(set) var extensionStats: [ExtensionStat] = []
+
+    private func refreshDerivedState() {
+        let root = currentRoot
+        displayRoot = root?.sorted(by: sortKey, ascending: sortAscending)
+        extensionStats = root.map(ExtensionStats.aggregate(from:)) ?? []
     }
 
     private let scanner = DirectoryScanner()

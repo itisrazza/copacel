@@ -9,8 +9,10 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            toolbar
-            Divider()
+            if !viewModel.breadcrumbTrail.isEmpty || isScanning || isFailed {
+                statusBar
+                Divider()
+            }
             if viewModel.permissionDeniedCount > 0, !dismissedFullDiskAccessTip {
                 FullDiskAccessTipView(deniedCount: viewModel.permissionDeniedCount) {
                     dismissedFullDiskAccessTip = true
@@ -20,6 +22,43 @@ struct ContentView: View {
             content
         }
         .frame(minWidth: 640, minHeight: 400)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                Button {
+                    isChoosingFolder = true
+                } label: {
+                    Image(systemName: "folder.badge.plus")
+                }
+                .help("Choose Folder…")
+
+                if !viewModel.navigationPath.isEmpty {
+                    Button {
+                        viewModel.drillUp(to: viewModel.navigationPath.dropLast().last)
+                    } label: {
+                        Image(systemName: "chevron.up")
+                    }
+                    .help("Up")
+                }
+            }
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                if isScanning {
+                    Button {
+                        viewModel.stopScan()
+                    } label: {
+                        Image(systemName: "stop.fill")
+                    }
+                    .help("Stop Scanning")
+                } else if let rootURL = viewModel.rootURL {
+                    Button {
+                        viewModel.scan(root: rootURL)
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help("Rescan")
+                }
+            }
+        }
         .fileImporter(isPresented: $isChoosingFolder, allowedContentTypes: [.folder]) { result in
             if let url = try? result.get() {
                 dismissedFullDiskAccessTip = false
@@ -47,47 +86,32 @@ struct ContentView: View {
         return false
     }
 
-    private var toolbar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Button("Choose Folder…") { isChoosingFolder = true }
+    private var isFailed: Bool {
+        if case .failed = viewModel.state { return true }
+        return false
+    }
 
-                if let rootURL = viewModel.rootURL {
-                    Button {
-                        viewModel.scan(root: rootURL)
-                    } label: {
-                        Label("Rescan", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(isScanning)
-                }
-
-                if isScanning {
-                    Button {
-                        viewModel.stopScan()
-                    } label: {
-                        Label("Stop", systemImage: "stop.fill")
-                    }
-                }
-
-                Spacer()
-
-                switch viewModel.state {
-                case .scanning(let count):
-                    ProgressView("Scanning… \(count) items")
-                        .controlSize(.small)
-                case .failed(let message):
-                    Label("Scan failed: \(message)", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
-                default:
-                    EmptyView()
-                }
-            }
-
+    private var statusBar: some View {
+        HStack {
             if !viewModel.breadcrumbTrail.isEmpty {
                 breadcrumb
             }
+
+            Spacer()
+
+            switch viewModel.state {
+            case .scanning(let count):
+                ProgressView("Scanning… \(count) items")
+                    .controlSize(.small)
+            case .failed(let message):
+                Label("Scan failed: \(message)", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+            default:
+                EmptyView()
+            }
         }
-        .padding(8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     private var breadcrumb: some View {

@@ -1,6 +1,12 @@
 name: Copacel
 options:
   bundleIdPrefix: io.razza
+  # Without this, XcodeGen expands the Icon Composer .icon package into individual file
+  # references instead of a single bundle reference, and Xcode no longer recognizes it
+  # as an app icon. https://github.com/yonaskolb/XcodeGen/issues/1556
+  fileTypes:
+    icon:
+      file: true
 configs:
   Debug: debug
   Release: release

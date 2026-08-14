@@ -39,6 +39,7 @@ public struct DirectoryScanner: Sendable {
             at: root,
             path: path,
             deviceID: rootStat.st_dev,
+            mountPoints: Self.mountPointPaths(),
             semaphore: semaphore,
             onEvent: onEvent
         )
@@ -48,6 +49,7 @@ public struct DirectoryScanner: Sendable {
         at url: URL,
         path: String,
         deviceID: dev_t,
+        mountPoints: Set<String>,
         semaphore: AsyncSemaphore,
         onEvent: (@Sendable (ScanEvent) -> Void)?
     ) async throws -> FileNode {
@@ -74,8 +76,12 @@ public struct DirectoryScanner: Sendable {
             let childURL = url.appendingPathComponent(name)
 
             if (st.st_mode & S_IFMT) == S_IFDIR {
-                guard st.st_dev == deviceID else {
-                    // Mount point: represent it, but don't cross onto another volume.
+                // Mount point: represent it, but don't cross onto another volume. `st_dev`
+                // alone isn't enough — a Data volume firmlinked into the boot volume (e.g.
+                // /System/Volumes/Data) reports the *same* st_dev as its System volume despite
+                // being a distinct mount, so its content is already reachable through firmlinks
+                // like /Users. Cross-check against the real mount table to catch that case too.
+                guard st.st_dev == deviceID, !mountPoints.contains(childPath) else {
                     fileChildren.append(FileNode(
                         url: childURL, name: name, isDirectory: true, isSymbolicLink: false,
                         logicalSize: 0, physicalSize: 0, children: [], fileCount: 0
@@ -94,7 +100,7 @@ public struct DirectoryScanner: Sendable {
                 group.addTask {
                     try await self.scanDirectory(
                         at: subdirectory.url, path: subdirectory.path, deviceID: deviceID,
-                        semaphore: semaphore, onEvent: onEvent
+                        mountPoints: mountPoints, semaphore: semaphore, onEvent: onEvent
                     )
                 }
             }
@@ -137,6 +143,22 @@ public struct DirectoryScanner: Sendable {
     private static func lstatInfo(_ path: String) -> stat? {
         var s = stat()
         return lstat(path, &s) == 0 ? s : nil
+    }
+
+    /// All currently mounted filesystems' mount points, via the same BSD API `mount`/`df` use.
+    /// `FileManager.mountedVolumeURLs` isn't a substitute here — it omits some mounts
+    /// (notably /System/Volumes/Data itself) that `getmntinfo` reports.
+    private static func mountPointPaths() -> Set<String> {
+        var mountBuffer: UnsafeMutablePointer<statfs>?
+        let count = getmntinfo(&mountBuffer, MNT_NOWAIT)
+        guard count > 0, let mountBuffer else { return [] }
+
+        let entries = UnsafeBufferPointer(start: mountBuffer, count: Int(count))
+        return Set(entries.map { entry in
+            withUnsafeBytes(of: entry.f_mntonname) { raw in
+                String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+            }
+        })
     }
 }
 

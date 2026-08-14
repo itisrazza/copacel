@@ -139,10 +139,14 @@ struct ContentView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            StatusPlaceholderView(
-                systemImage: "internaldrive",
-                title: "No folder scanned yet",
-                message: "Choose a folder to see what's using your disk space."
+            VolumeSelectionView(
+                onSelectVolume: { url in
+                    dismissedFullDiskAccessTip = false
+                    viewModel.scan(root: url)
+                },
+                onChooseFolder: {
+                    isChoosingFolder = true
+                }
             )
         case .scanning(let count):
             StatusPlaceholderView(

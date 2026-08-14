@@ -9,6 +9,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "CopacelCore"),
+        .executableTarget(name: "VerifyMountBoundary", dependencies: ["CopacelCore"]),
         .testTarget(name: "CopacelCoreTests", dependencies: ["CopacelCore"])
     ]
 )

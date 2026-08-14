@@ -2,6 +2,7 @@
 <h1 align="center">Copăcel</h1>
 <div align="center">
   <img alt="CI" src="https://github.com/itisrazza/copacel/actions/workflows/ci.yml/badge.svg">
+  <img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-blue.svg">
 </div>
 
 A macOS disk usage visualiser. Pick a folder or a volume and Copăcel scans it
@@ -56,3 +57,7 @@ swift test --package-path CopacelCore
 See [RELEASING.md](RELEASING.md) for the branching model and the full release
 process, from cutting a release branch through local signing to publishing on
 GitHub.
+
+## Licence
+
+[MIT](LICENSE)

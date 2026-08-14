@@ -1,11 +1,13 @@
-name: Release archive
+name: Release Candidate archive
 
-# Produces an unsigned .xcarchive for a release branch. Download it, then run
+# Produces an unsigned .xcarchive for a release-candidate branch (release/v1.0,
+# release/v1.1, ...) — not the major branch itself (release/v1), which has no dot
+# and won't match this filter. Download the archive, then run
 # Scripts/package-release.sh locally to sign it with your Developer ID Application
 # certificate and package it as a DMG.
 on:
   push:
-    branches: ["release/v*"]
+    branches: ["release/v*.*"]
 
 jobs:
   archive:

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run CopacelCore tests
+        run: swift test --package-path CopacelCore
+
+      # No Developer ID certificate is available in CI, so signing is disabled entirely
+      # (rather than falling back to ad-hoc) — this build is for verification and manual
+      # download only, not for release. Release archives are produced by release-archive.yml
+      # and signed locally.
+      - name: Build Copacel.app (unsigned)
+        run: |
+          xcodebuild \
+            -project Copacel.xcodeproj \
+            -scheme Copacel \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Copacel-unsigned
+          path: build/Build/Products/Release/Copacel.app
+          if-no-files-found: error

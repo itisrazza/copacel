@@ -1,0 +1,37 @@
+name: Release archive
+
+# Produces an unsigned .xcarchive for a release branch. Download it, then run
+# Scripts/package-release.sh locally to sign it with your Developer ID Application
+# certificate and package it as a DMG.
+on:
+  push:
+    branches: ["release/v*"]
+
+jobs:
+  archive:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Archive Copacel
+        run: |
+          xcodebuild \
+            -project Copacel.xcodeproj \
+            -scheme Copacel \
+            -configuration Release \
+            -archivePath build/Copacel.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Copacel-xcarchive
+          path: build/Copacel.xcarchive
+          if-no-files-found: error

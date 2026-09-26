@@ -11,16 +11,9 @@ volume, and Copăcel scans it concurrently, then shows where the space went — 
 squarified treemap, a sortable file list, and a ranking of the folders actually holding
 the bulk of it.
 
-## How this was made
-
-Copăcel is written almost entirely by an LLM, using [Claude
-Code](https://claude.com/claude-code). I don't write Swift. I decide what the app should
-do and how it should behave, review what comes back, and try it against my own disk; the
-model does the code generation.
-
-I'd rather say that outright than have people infer it. The product decisions and the
-feel of the app are mine — the implementation is not something I could have written
-unaided.
+![Copăcel scanning a home folder. A sortable file list fills the upper left, a legend
+grouping files by kind sits to its right, and a squarified treemap coloured by file
+extension fills the lower half of the window.](screenshot.png)
 
 ## Features
 
@@ -92,6 +85,13 @@ swift run --package-path CopacelCore VerifyMountBoundary
 
 See [RELEASING.md](RELEASING.md) for the branching model and the full release process, from
 cutting a release branch through local signing to publishing on GitHub.
+
+## How this was made
+
+Copăcel is written almost entirely by an LLM, using [Claude
+Code](https://claude.com/claude-code). I don't write Swift. I decide what the app should
+do and how it should behave, review what comes back, and try it against my own files; the
+model does the code generation.
 
 ## Licence
 

@@ -161,15 +161,18 @@ struct ContentView: View {
                 message: message
             )
         case .completed:
-            if let root = viewModel.displayRoot, let treemapRoot = viewModel.currentRoot, !root.children.isEmpty {
-                scanResultView(root: root, treemapRoot: treemapRoot)
+            if let root = viewModel.displayRoot, !root.children.isEmpty {
+                scanResultView(root: root)
             } else {
                 StatusPlaceholderView(systemImage: "tray", title: "This folder is empty")
             }
         }
     }
 
-    private func scanResultView(root: FileNode, treemapRoot: FileNode) -> some View {
+    /// `root` feeds both panes. The treemap doesn't care about `sortKey` — `squarify` orders
+    /// by size itself — but sharing the one (asynchronously derived) tree keeps the list and
+    /// the treemap showing the same level as you drill down.
+    private func scanResultView(root: FileNode) -> some View {
         VSplitView {
             HSplitView {
                 FileListView(
@@ -201,7 +204,7 @@ struct ContentView: View {
             .frame(minHeight: 200)
 
             TreemapView(
-                root: treemapRoot,
+                root: root,
                 selection: viewModel.selectedNode,
                 highlightedExtension: viewModel.selectedExtension,
                 onSelect: { viewModel.selectedNode = $0 },

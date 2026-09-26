@@ -63,10 +63,31 @@ final class ScanViewModel {
     /// as you drill down, same as the list/treemap.
     private(set) var extensionStats: [ExtensionStat] = []
 
+    private var derivedStateTask: Task<Void, Never>?
+
+    /// Recomputes `displayRoot`/`extensionStats` off the main actor: on a large tree, sorting
+    /// and aggregating together take long enough to visibly stall a sort-header click or a
+    /// drill-down. The previous values are left in place until the new ones land, so the UI
+    /// briefly shows the old level rather than flashing a placeholder.
     private func refreshDerivedState() {
-        let root = currentRoot
-        displayRoot = root?.sorted(by: sortKey, ascending: sortAscending)
-        extensionStats = root.map(ExtensionStats.aggregate(from:)) ?? []
+        derivedStateTask?.cancel()
+        guard let root = currentRoot else {
+            displayRoot = nil
+            extensionStats = []
+            derivedStateTask = nil
+            return
+        }
+
+        let sortKey = self.sortKey
+        let ascending = self.sortAscending
+        // Inherits @MainActor from this method, so the assignments below land back on the
+        // main actor once `derive` returns.
+        derivedStateTask = Task { [weak self] in
+            let derived = await derive(from: root, sortKey: sortKey, ascending: ascending)
+            guard !Task.isCancelled, let self else { return }
+            self.displayRoot = derived.displayRoot
+            self.extensionStats = derived.stats
+        }
     }
 
     private let scanner = DirectoryScanner()
@@ -107,6 +128,11 @@ final class ScanViewModel {
                 }
                 guard !Task.isCancelled else { return }
                 self.rootNode = node
+                // Wait for the derived state that assignment kicked off, so the UI goes
+                // straight from "Scanning…" to the finished view instead of flashing the
+                // empty-folder placeholder while the first sort runs.
+                await self.derivedStateTask?.value
+                guard !Task.isCancelled else { return }
                 self.state = .completed
             } catch {
                 guard !Task.isCancelled else { return }
@@ -149,6 +175,16 @@ final class ScanViewModel {
             selectedNode = nil
         }
     }
+}
+
+/// `nonisolated` so it runs on the global executor instead of the main actor, while still
+/// inheriting cancellation from the task awaiting it.
+private nonisolated func derive(
+    from root: FileNode,
+    sortKey: FileSortKey,
+    ascending: Bool
+) async -> (displayRoot: FileNode, stats: [ExtensionStat]) {
+    (root.sorted(by: sortKey, ascending: ascending), ExtensionStats.aggregate(from: root))
 }
 
 /// Lock-protected counter for tallying scan progress reported from the scanner's

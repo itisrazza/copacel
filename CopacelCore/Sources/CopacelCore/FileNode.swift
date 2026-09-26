@@ -13,6 +13,10 @@ public struct FileNode: Identifiable, Sendable {
     public let physicalSize: Int64
     public let children: [FileNode]
     public let fileCount: Int
+    /// Why this directory's contents are missing, when they are. `nil` for everything the
+    /// scanner could read — which is what separates a genuinely empty directory from one it
+    /// was refused.
+    public let readFailure: DirectoryReadFailure?
 
     public init(
         url: URL,
@@ -22,7 +26,8 @@ public struct FileNode: Identifiable, Sendable {
         logicalSize: Int64,
         physicalSize: Int64,
         children: [FileNode],
-        fileCount: Int
+        fileCount: Int,
+        readFailure: DirectoryReadFailure? = nil
     ) {
         self.url = url
         self.name = name
@@ -32,6 +37,7 @@ public struct FileNode: Identifiable, Sendable {
         self.physicalSize = physicalSize
         self.children = children
         self.fileCount = fileCount
+        self.readFailure = readFailure
     }
 
     public var id: URL { url }

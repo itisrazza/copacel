@@ -20,8 +20,10 @@ concurrently, then shows what's taking up the space as a squarified treemap.
   then internal, then removable) with used space and a usage bar, and updates live
   as drives are plugged in or ejected.
 - **Reveal in Finder / Copy Path / Move to Trash** from a file's context menu.
-- **Full Disk Access aware** — flags when a scan hit permission-denied folders and
-  links straight to the relevant System Settings pane.
+- **Full Disk Access aware** — warns before a scan if the grant is missing, and afterwards
+  lists exactly which folders were skipped. Distinguishes folders macOS protects (which the
+  grant fixes) from ones ordinary permissions deny (which it doesn't), and marks each in the
+  file list so an unreadable folder isn't mistaken for an empty one.
 - **Accurate per-volume totals** — the scanner won't cross into another mounted
   volume (including a firmlinked Data volume like `/System/Volumes/Data`), so
   scanning a volume never double-counts content reachable by more than one path.

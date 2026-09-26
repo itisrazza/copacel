@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var viewModel = ScanViewModel()
     @State private var isChoosingFolder = false
     @State private var pendingDeletion: FileNode?
-    @State private var dismissedFullDiskAccessTip = false
+    @State private var dismissedSkippedBanner = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -13,9 +13,9 @@ struct ContentView: View {
                 statusBar
                 Divider()
             }
-            if viewModel.permissionDeniedCount > 0, !dismissedFullDiskAccessTip {
-                FullDiskAccessTipView(deniedCount: viewModel.permissionDeniedCount) {
-                    dismissedFullDiskAccessTip = true
+            if !viewModel.skipped.isEmpty, !dismissedSkippedBanner {
+                SkippedFoldersBanner(skipped: viewModel.skipped) {
+                    dismissedSkippedBanner = true
                 }
                 Divider()
             }
@@ -61,7 +61,7 @@ struct ContentView: View {
         }
         .fileImporter(isPresented: $isChoosingFolder, allowedContentTypes: [.folder]) { result in
             if let url = try? result.get() {
-                dismissedFullDiskAccessTip = false
+                dismissedSkippedBanner = false
                 viewModel.scan(root: url)
             }
         }
@@ -141,7 +141,7 @@ struct ContentView: View {
         case .idle:
             VolumeSelectionView(
                 onSelectVolume: { url in
-                    dismissedFullDiskAccessTip = false
+                    dismissedSkippedBanner = false
                     viewModel.scan(root: url)
                 },
                 onChooseFolder: {

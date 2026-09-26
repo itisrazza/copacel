@@ -60,8 +60,12 @@ import Testing
 
     let deniedPaths = DeniedPathCollector()
     let scanned = try await DirectoryScanner().scan(root: root) { event in
-        if case .permissionDenied(let path) = event {
+        if case .unreadableDirectory(let path, let failure) = event {
             deniedPaths.add(path)
+            // chmod 000 is an ordinary permission denial (EACCES), not macOS privacy
+            // protection — Full Disk Access wouldn't make this one readable.
+            #expect(failure == .permissionDenied)
+            #expect(failure.isResolvedByFullDiskAccess == false)
         }
     }
 
@@ -69,6 +73,21 @@ import Testing
     let restrictedNode = try #require(scanned.children.first { $0.name == "restricted" })
     #expect(restrictedNode.fileCount == 0)
     #expect(restrictedNode.logicalSize == 0)
+    // The node records why it's empty, so the UI can tell it from a genuinely empty folder.
+    #expect(restrictedNode.readFailure == .permissionDenied)
+}
+
+@Test func readableEmptyDirectoriesAreNotMarkedUnreadable() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let empty = root.appendingPathComponent("empty")
+    try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let scanned = try await DirectoryScanner().scan(root: root)
+
+    let emptyNode = try #require(scanned.children.first { $0.name == "empty" })
+    #expect(emptyNode.children.isEmpty)
+    #expect(emptyNode.readFailure == nil)
 }
 
 private final class DeniedPathCollector: @unchecked Sendable {

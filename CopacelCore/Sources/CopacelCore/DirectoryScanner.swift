@@ -3,7 +3,7 @@ import Foundation
 
 public enum ScanEvent: Sendable {
     case scanned(path: URL)
-    case permissionDenied(path: URL)
+    case unreadableDirectory(path: URL, failure: DirectoryReadFailure)
 }
 
 public enum ScanError: Error, Sendable {
@@ -54,14 +54,19 @@ public struct DirectoryScanner: Sendable {
         onEvent: (@Sendable (ScanEvent) -> Void)?
     ) async throws -> FileNode {
         await semaphore.acquire()
-        let entryNames = Self.directoryEntryNames(path)
+        let listing = Self.directoryEntryNames(path)
         await semaphore.release()
 
-        guard let entryNames else {
-            onEvent?(.permissionDenied(path: url))
+        let entryNames: [String]
+        switch listing {
+        case .success(let names):
+            entryNames = names
+        case .failure(let failure):
+            onEvent?(.unreadableDirectory(path: url, failure: failure))
             return FileNode(
                 url: url, name: url.lastPathComponent, isDirectory: true, isSymbolicLink: false,
-                logicalSize: 0, physicalSize: 0, children: [], fileCount: 0
+                logicalSize: 0, physicalSize: 0, children: [], fileCount: 0,
+                readFailure: failure
             )
         }
 
@@ -138,7 +143,7 @@ public struct DirectoryScanner: Sendable {
         )
     }
 
-    /// Lists a directory's entry names, or `nil` if it can't be opened at all.
+    /// Lists a directory's entry names, or why it couldn't be opened.
     ///
     /// Uses `readdir` rather than `FileManager.contentsOfDirectory`, which resolves a path
     /// *through* its own final component. That difference matters at the boot volume's root:
@@ -146,8 +151,10 @@ public struct DirectoryScanner: Sendable {
     /// `find` and `du` alike, but `contentsOfDirectory` reports it as holding all of `/` — so
     /// the scan walks the entire volume a second time under that name. `readdir` sees it
     /// empty, as it actually is.
-    private static func directoryEntryNames(_ path: String) -> [String]? {
-        guard let directory = opendir(path) else { return nil }
+    private static func directoryEntryNames(_ path: String) -> Result<[String], DirectoryReadFailure> {
+        guard let directory = opendir(path) else {
+            return .failure(DirectoryReadFailure(code: errno))
+        }
         defer { closedir(directory) }
 
         var names: [String] = []
@@ -158,7 +165,7 @@ public struct DirectoryScanner: Sendable {
             guard name != ".", name != ".." else { continue }
             names.append(name)
         }
-        return names
+        return .success(names)
     }
 
     /// Joins a directory path and an entry name without doubling the separator when the

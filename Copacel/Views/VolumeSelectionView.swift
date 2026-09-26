@@ -7,6 +7,7 @@ struct VolumeSelectionView: View {
     let onChooseFolder: () -> Void
 
     @State private var volumes: [VolumeInfo] = []
+    @State private var hasFullDiskAccess = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +23,15 @@ struct VolumeSelectionView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 60)
-            .padding(.bottom, 32)
+            .padding(.bottom, hasFullDiskAccess ? 32 : 16)
+
+            if !hasFullDiskAccess {
+                FullDiskAccessPrompt()
+                    .frame(maxWidth: 600)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+            }
+
             ScrollView {
                 VStack(spacing: 12) {
                     ForEach(volumes) { volume in
@@ -52,6 +61,12 @@ struct VolumeSelectionView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .task {
             refreshVolumes()
+            hasFullDiskAccess = FullDiskAccess.isGranted()
+        }
+        // Re-check on activation: the usual path here is to leave for System Settings, grant
+        // it, and come back, and the notice should be gone on return.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasFullDiskAccess = FullDiskAccess.isGranted()
         }
         .task {
             await observeVolumeChanges()
@@ -182,4 +197,31 @@ struct VolumeRow: View {
         onChooseFolder: { }
     )
     .frame(width: 640, height: 500)
+}
+
+
+/// Shown before a scan starts, so the shortfall is known up front rather than discovered
+/// from a banner once the results are already wrong.
+private struct FullDiskAccessPrompt: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock.shield")
+                .font(.title2)
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Copăcel doesn't have Full Disk Access")
+                    .font(.callout.bold())
+                Text("Scans will skip folders macOS protects, so totals will come up short.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button("Open Settings…") { FullDiskAccessSettings.open() }
+        }
+        .padding(12)
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+    }
 }

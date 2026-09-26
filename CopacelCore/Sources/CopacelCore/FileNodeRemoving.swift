@@ -17,7 +17,8 @@ extension FileNode {
             logicalSize: newChildren.reduce(0) { $0 + $1.logicalSize },
             physicalSize: newChildren.reduce(0) { $0 + $1.physicalSize },
             children: newChildren,
-            fileCount: newChildren.reduce(0) { $0 + $1.fileCount }
+            fileCount: newChildren.reduce(0) { $0 + $1.fileCount },
+            readFailure: readFailure
         )
     }
 }

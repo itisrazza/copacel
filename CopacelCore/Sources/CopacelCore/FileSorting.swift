@@ -20,7 +20,8 @@ extension FileNode {
 
         return FileNode(
             url: url, name: name, isDirectory: isDirectory, isSymbolicLink: isSymbolicLink,
-            logicalSize: logicalSize, physicalSize: physicalSize, children: sortedChildren, fileCount: fileCount
+            logicalSize: logicalSize, physicalSize: physicalSize, children: sortedChildren, fileCount: fileCount,
+            readFailure: readFailure
         )
     }
 

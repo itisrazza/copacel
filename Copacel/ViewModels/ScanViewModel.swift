@@ -22,7 +22,7 @@ final class ScanViewModel {
     private(set) var navigationPath: [URL] = [] {
         didSet { refreshDerivedState() }
     }
-    private(set) var permissionDeniedCount = 0
+    private(set) var skipped = SkippedDirectories()
     var selectedNode: FileNode?
     /// Extension clicked in the legend, to highlight matching tiles in the treemap. Distinct
     /// from `selectedNode`, since this is a "highlight all of this type" filter, not a pick.
@@ -116,7 +116,7 @@ final class ScanViewModel {
         rootURL = root
         navigationPath = []
         selectedNode = nil
-        permissionDeniedCount = 0
+        skipped = SkippedDirectories()
         resetListExpansion()
         state = .scanning(scannedCount: 0)
 
@@ -138,9 +138,9 @@ final class ScanViewModel {
                             guard case .scanning = self.state else { return }
                             self.state = .scanning(scannedCount: count)
                         }
-                    case .permissionDenied:
+                    case .unreadableDirectory(let path, let failure):
                         Task { @MainActor in
-                            self.permissionDeniedCount += 1
+                            self.skipped.record(url: path, failure: failure)
                         }
                     }
                 }

@@ -157,6 +157,15 @@ private struct FileRowView: View {
                 Text(node.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
+
+                // Marks a directory that's empty because the scan was refused, rather than
+                // because there's nothing in it.
+                if let failure = node.readFailure {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .help(failure.localizedDescription)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

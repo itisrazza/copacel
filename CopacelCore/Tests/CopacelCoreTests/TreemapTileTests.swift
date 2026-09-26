@@ -54,3 +54,30 @@ import Testing
     #expect(tiles.count == 1)
     #expect(tiles[0].node.name == "huge.bin")
 }
+
+@Test func recursiveTilesYieldsNothingWhenTheSurroundingTaskIsCancelled() async {
+    func file(_ name: String, size: Int64) -> FileNode {
+        FileNode(
+            url: URL(fileURLWithPath: "/root/\(name)"), name: name, isDirectory: false, isSymbolicLink: false,
+            logicalSize: size, physicalSize: size, children: [], fileCount: 1
+        )
+    }
+
+    let root = FileNode(
+        url: URL(fileURLWithPath: "/root"), name: "root", isDirectory: true, isSymbolicLink: false,
+        logicalSize: 100, physicalSize: 100,
+        children: [file("a.txt", size: 50), file("b.txt", size: 50)], fileCount: 2
+    )
+
+    // Yield until cancellation actually lands, so the call below deterministically runs
+    // inside a cancelled task rather than racing `cancel()`.
+    let task = Task {
+        while !Task.isCancelled {
+            await Task.yield()
+        }
+        return TreemapLayout.recursiveTiles(for: root, in: CGRect(x: 0, y: 0, width: 400, height: 300))
+    }
+    task.cancel()
+
+    #expect(await task.value.isEmpty)
+}

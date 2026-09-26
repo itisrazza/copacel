@@ -26,6 +26,12 @@ extension TreemapLayout {
     ) -> [TreemapTile] {
         guard rect.width > 0, rect.height > 0 else { return [] }
 
+        // Cooperative cancellation, so a layout that's already been superseded (a window
+        // resize part-way through tiling a huge tree, say) stops instead of computing a
+        // result nobody will read. Outside a task `Task.isCancelled` is always false, so
+        // synchronous callers are unaffected.
+        guard !Task.isCancelled else { return [] }
+
         guard node.isDirectory, !node.children.isEmpty, depth < maxDepth else {
             return [TreemapTile(node: node, rect: rect, depth: depth)]
         }

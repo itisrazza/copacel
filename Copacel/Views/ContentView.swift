@@ -6,6 +6,14 @@ struct ContentView: View {
     @State private var isChoosingFolder = false
     @State private var pendingDeletion: FileNode?
     @State private var dismissedSkippedBanner = false
+    @State private var browsePane: BrowsePane = .files
+
+    enum BrowsePane: String, CaseIterable, Identifiable {
+        case files = "Files"
+        case clusters = "Clusters"
+
+        var id: Self { self }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -169,35 +177,38 @@ struct ContentView: View {
         }
     }
 
-    /// `root` feeds both panes. The treemap doesn't care about `sortKey` — `squarify` orders
-    /// by size itself — but sharing the one (asynchronously derived) tree keeps the list and
-    /// the treemap showing the same level as you drill down.
+    /// `root` feeds every pane. The treemap doesn't care about `sortKey` — `squarify` orders
+    /// by size itself — but sharing the one (asynchronously derived) tree keeps the browser
+    /// and the treemap showing the same level as you drill down.
     private func scanResultView(root: FileNode) -> some View {
         VSplitView {
             HSplitView {
-                FileListView(
-                    root: root,
-                    totalSize: root.physicalSize,
-                    selection: $viewModel.selectedNode,
-                    expandedURLs: $viewModel.expandedURLs,
-                    revealTarget: viewModel.revealTarget,
-                    sortKey: viewModel.sortKey,
-                    sortAscending: viewModel.sortAscending,
-                    onChangeSort: { key in
-                        if viewModel.sortKey == key {
-                            viewModel.sortAscending.toggle()
-                        } else {
-                            viewModel.sortKey = key
-                            viewModel.sortAscending = false
+                VStack(spacing: 0) {
+                    Picker("View", selection: $browsePane) {
+                        ForEach(BrowsePane.allCases) { pane in
+                            Text(pane.rawValue).tag(pane)
                         }
-                    },
-                    onDoubleClick: { node in
-                        if node.isDirectory {
-                            viewModel.drillDown(into: node)
-                        }
-                    },
-                    onRequestDelete: { pendingDeletion = $0 }
-                )
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                    Divider()
+
+                    switch browsePane {
+                    case .files:
+                        fileList(root: root)
+                    case .clusters:
+                        ClusterListView(
+                            clusters: viewModel.clusters,
+                            root: root,
+                            selection: $viewModel.selectedNode,
+                            onDrillDown: { viewModel.drillDown(into: $0) },
+                            onRequestDelete: { pendingDeletion = $0 }
+                        )
+                    }
+                }
                 .frame(minWidth: 360)
 
                 ExtensionLegendView(stats: viewModel.extensionStats, selectedExtension: $viewModel.selectedExtension)
@@ -215,6 +226,32 @@ struct ContentView: View {
             )
             .frame(minHeight: 160)
         }
+    }
+
+    private func fileList(root: FileNode) -> some View {
+        FileListView(
+            root: root,
+            totalSize: root.physicalSize,
+            selection: $viewModel.selectedNode,
+            expandedURLs: $viewModel.expandedURLs,
+            revealTarget: viewModel.revealTarget,
+            sortKey: viewModel.sortKey,
+            sortAscending: viewModel.sortAscending,
+            onChangeSort: { key in
+                if viewModel.sortKey == key {
+                    viewModel.sortAscending.toggle()
+                } else {
+                    viewModel.sortKey = key
+                    viewModel.sortAscending = false
+                }
+            },
+            onDoubleClick: { node in
+                if node.isDirectory {
+                    viewModel.drillDown(into: node)
+                }
+            },
+            onRequestDelete: { pendingDeletion = $0 }
+        )
     }
 }
 

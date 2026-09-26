@@ -80,6 +80,9 @@ final class ScanViewModel {
     /// as you drill down, same as the list/treemap.
     private(set) var extensionStats: [ExtensionStat] = []
 
+    /// The directories holding the bulk of `currentRoot`'s space, largest first.
+    private(set) var clusters: [FileNode] = []
+
     private var derivedStateTask: Task<Void, Never>?
 
     /// Recomputes `displayRoot`/`extensionStats` off the main actor: on a large tree, sorting
@@ -91,6 +94,7 @@ final class ScanViewModel {
         guard let root = currentRoot else {
             displayRoot = nil
             extensionStats = []
+            clusters = []
             derivedStateTask = nil
             return
         }
@@ -104,6 +108,7 @@ final class ScanViewModel {
             guard !Task.isCancelled, let self else { return }
             self.displayRoot = derived.displayRoot
             self.extensionStats = derived.stats
+            self.clusters = derived.clusters
         }
     }
 
@@ -223,8 +228,12 @@ private nonisolated func derive(
     from root: FileNode,
     sortKey: FileSortKey,
     ascending: Bool
-) async -> (displayRoot: FileNode, stats: [ExtensionStat]) {
-    (root.sorted(by: sortKey, ascending: ascending), ExtensionStats.aggregate(from: root))
+) async -> (displayRoot: FileNode, stats: [ExtensionStat], clusters: [FileNode]) {
+    (
+        root.sorted(by: sortKey, ascending: ascending),
+        ExtensionStats.aggregate(from: root),
+        root.largestClusters()
+    )
 }
 
 /// Lock-protected counter for tallying scan progress reported from the scanner's

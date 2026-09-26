@@ -179,6 +179,8 @@ struct ContentView: View {
                     root: root,
                     totalSize: root.physicalSize,
                     selection: $viewModel.selectedNode,
+                    expandedURLs: $viewModel.expandedURLs,
+                    revealTarget: viewModel.revealTarget,
                     sortKey: viewModel.sortKey,
                     sortAscending: viewModel.sortAscending,
                     onChangeSort: { key in
@@ -207,7 +209,7 @@ struct ContentView: View {
                 root: root,
                 selection: viewModel.selectedNode,
                 highlightedExtension: viewModel.selectedExtension,
-                onSelect: { viewModel.selectedNode = $0 },
+                onSelect: { viewModel.reveal($0) },
                 onDrillDown: { viewModel.drillDown(into: $0) },
                 onRequestDelete: { pendingDeletion = $0 }
             )

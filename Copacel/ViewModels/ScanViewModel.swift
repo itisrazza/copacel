@@ -28,6 +28,23 @@ final class ScanViewModel {
     /// from `selectedNode`, since this is a "highlight all of this type" filter, not a pick.
     var selectedExtension: String?
 
+    /// Directories the file list has open. Held here rather than inside the list because
+    /// picking a tile in the treemap has to open the path down to the row it selects, and
+    /// `OutlineGroup` keeps its own expansion state private.
+    var expandedURLs: Set<URL> = []
+
+    /// Set when something outside the file list asks it to show a node, so the list scrolls
+    /// only then and not on every selection change — clicking a row shouldn't move it.
+    private(set) var revealTarget: RevealTarget?
+    private var revealCount = 0
+
+    struct RevealTarget: Equatable, Sendable {
+        let url: URL
+        /// Distinguishes one request from the next, so picking the same tile again still
+        /// scrolls the list back to it.
+        let request: Int
+    }
+
     var sortKey: FileSortKey = .physicalSize {
         didSet { refreshDerivedState() }
     }
@@ -100,6 +117,7 @@ final class ScanViewModel {
         navigationPath = []
         selectedNode = nil
         permissionDeniedCount = 0
+        resetListExpansion()
         state = .scanning(scannedCount: 0)
 
         let scanner = self.scanner
@@ -147,10 +165,23 @@ final class ScanViewModel {
         state = .idle
     }
 
+    /// Selects `node` and opens the file list down to it, for picks made in the treemap where
+    /// the matching row is usually inside collapsed directories.
+    func reveal(_ node: FileNode) {
+        selectedNode = node
+
+        if let currentRoot, let ancestors = FileNode.ancestorURLs(from: currentRoot.url, to: node.url) {
+            expandedURLs.formUnion(ancestors)
+        }
+        revealCount += 1
+        revealTarget = RevealTarget(url: node.url, request: revealCount)
+    }
+
     func drillDown(into node: FileNode) {
         guard node.isDirectory else { return }
         navigationPath.append(node.url)
         selectedNode = nil
+        resetListExpansion()
     }
 
     /// Pops the navigation path back to `url`, or to the scan root if `url` is `nil`.
@@ -158,12 +189,21 @@ final class ScanViewModel {
         guard let url else {
             navigationPath = []
             selectedNode = nil
+            resetListExpansion()
             return
         }
         if let index = navigationPath.firstIndex(of: url) {
             navigationPath = Array(navigationPath[0...index])
         }
         selectedNode = nil
+        resetListExpansion()
+    }
+
+    /// Expansion is relative to whatever level is on screen, so changing level drops it.
+    /// Deleting a node deliberately doesn't — losing your place after a delete is annoying.
+    private func resetListExpansion() {
+        expandedURLs = []
+        revealTarget = nil
     }
 
     /// Removes `node` (file or whole subtree) from the in-memory tree and re-aggregates

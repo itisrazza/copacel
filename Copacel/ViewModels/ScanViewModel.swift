@@ -24,9 +24,9 @@ final class ScanViewModel {
     }
     private(set) var skipped = SkippedDirectories()
     var selectedNode: FileNode?
-    /// Extension clicked in the legend, to highlight matching tiles in the treemap. Distinct
+    /// What's clicked in the legend, to highlight matching tiles in the treemap. Distinct
     /// from `selectedNode`, since this is a "highlight all of this type" filter, not a pick.
-    var selectedExtension: String?
+    var legendHighlight: LegendHighlight?
 
     /// Directories the file list has open. Held here rather than inside the list because
     /// picking a tile in the treemap has to open the path down to the row it selects, and
@@ -83,6 +83,22 @@ final class ScanViewModel {
     /// The directories holding the bulk of `currentRoot`'s space, largest first.
     private(set) var clusters: [FileNode] = []
 
+    /// `extensionStats` rolled up by kind, for the legend's "Kind" grouping.
+    private(set) var categoryStats: [CategoryStat] = []
+
+    /// The extensions the treemap should keep at full opacity, resolved from whatever the
+    /// legend has selected. `nil` when nothing is highlighted.
+    var highlightedExtensions: Set<String>? {
+        switch legendHighlight {
+        case .none:
+            nil
+        case .fileExtension(let fileExtension):
+            [fileExtension]
+        case .category(let category):
+            Set(categoryStats.first { $0.category == category }?.extensions ?? [])
+        }
+    }
+
     private var derivedStateTask: Task<Void, Never>?
 
     /// Recomputes `displayRoot`/`extensionStats` off the main actor: on a large tree, sorting
@@ -94,6 +110,7 @@ final class ScanViewModel {
         guard let root = currentRoot else {
             displayRoot = nil
             extensionStats = []
+            categoryStats = []
             clusters = []
             derivedStateTask = nil
             return
@@ -108,6 +125,7 @@ final class ScanViewModel {
             guard !Task.isCancelled, let self else { return }
             self.displayRoot = derived.displayRoot
             self.extensionStats = derived.stats
+            self.categoryStats = derived.categories
             self.clusters = derived.clusters
         }
     }
@@ -228,10 +246,12 @@ private nonisolated func derive(
     from root: FileNode,
     sortKey: FileSortKey,
     ascending: Bool
-) async -> (displayRoot: FileNode, stats: [ExtensionStat], clusters: [FileNode]) {
-    (
+) async -> (displayRoot: FileNode, stats: [ExtensionStat], categories: [CategoryStat], clusters: [FileNode]) {
+    let stats = ExtensionStats.aggregate(from: root)
+    return (
         root.sorted(by: sortKey, ascending: ascending),
-        ExtensionStats.aggregate(from: root),
+        stats,
+        CategoryStats.aggregate(from: stats),
         root.largestClusters()
     )
 }

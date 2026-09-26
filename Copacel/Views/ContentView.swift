@@ -211,15 +211,19 @@ struct ContentView: View {
                 }
                 .frame(minWidth: 360)
 
-                ExtensionLegendView(stats: viewModel.extensionStats, selectedExtension: $viewModel.selectedExtension)
-                    .frame(minWidth: 220, idealWidth: 260)
+                ExtensionLegendView(
+                    stats: viewModel.extensionStats,
+                    categoryStats: viewModel.categoryStats,
+                    highlight: $viewModel.legendHighlight
+                )
+                .frame(minWidth: 240, idealWidth: 280)
             }
             .frame(minHeight: 200)
 
             TreemapView(
                 root: root,
                 selection: viewModel.selectedNode,
-                highlightedExtension: viewModel.selectedExtension,
+                highlightedExtensions: viewModel.highlightedExtensions,
                 onSelect: { viewModel.reveal($0) },
                 onDrillDown: { viewModel.drillDown(into: $0) },
                 onRequestDelete: { pendingDeletion = $0 }

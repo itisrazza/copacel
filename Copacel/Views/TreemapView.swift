@@ -4,7 +4,8 @@ import SwiftUI
 struct TreemapView: View {
     var root: FileNode
     var selection: FileNode?
-    var highlightedExtension: String?
+    /// Extensions to keep at full opacity; everything else dims. `nil` highlights nothing.
+    var highlightedExtensions: Set<String>?
     var onSelect: (FileNode) -> Void
     var onDrillDown: (FileNode) -> Void
     var onRequestDelete: (FileNode) -> Void
@@ -17,7 +18,7 @@ struct TreemapView: View {
                 root: root,
                 viewSize: geometry.size,
                 selection: selection,
-                highlightedExtension: highlightedExtension,
+                highlightedExtensions: highlightedExtensions,
                 onSelect: onSelect,
                 onDrillDown: onDrillDown,
                 onRequestDelete: onRequestDelete
@@ -69,7 +70,7 @@ private struct TreemapContentView: View {
     var root: FileNode
     var viewSize: CGSize
     var selection: FileNode?
-    var highlightedExtension: String?
+    var highlightedExtensions: Set<String>?
     var onSelect: (FileNode) -> Void
     var onDrillDown: (FileNode) -> Void
     var onRequestDelete: (FileNode) -> Void
@@ -79,7 +80,7 @@ private struct TreemapContentView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            TreemapTileCanvas(tiling: tiling, highlightedExtension: highlightedExtension)
+            TreemapTileCanvas(tiling: tiling, highlightedExtensions: highlightedExtensions)
                 .equatable()
                 .gesture(tileGesture)
                 .onContinuousHover(perform: updateHover)
@@ -186,12 +187,12 @@ private struct TreemapContentView: View {
 /// redraw entirely unless the tiling or the legend highlight changed.
 private struct TreemapTileCanvas: View, Equatable {
     let tiling: TreemapTiling
-    let highlightedExtension: String?
+    let highlightedExtensions: Set<String>?
 
     // `nonisolated` because `View` is main-actor isolated, and SwiftUI compares views
     // outside that isolation.
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.tiling == rhs.tiling && lhs.highlightedExtension == rhs.highlightedExtension
+        lhs.tiling == rhs.tiling && lhs.highlightedExtensions == rhs.highlightedExtensions
     }
 
     var body: some View {
@@ -204,7 +205,7 @@ private struct TreemapTileCanvas: View, Equatable {
 
     private func draw(tile: TreemapTile, in context: inout GraphicsContext) {
         let color = ColorAssignment.color(forExtension: tile.node.fileExtension ?? "")
-        let isDimmed = highlightedExtension != nil && highlightedExtension != (tile.node.fileExtension ?? "")
+        let isDimmed = highlightedExtensions.map { !$0.contains(tile.node.fileExtension ?? "") } ?? false
         context.opacity = isDimmed ? 0.25 : 1
 
         // A directory with hundreds of thousands of files can produce tiles just a few

@@ -19,11 +19,15 @@ public struct SkippedDirectories: Sendable, Equatable {
 
     public static let sampleLimit = 250
 
+    /// Directories worth telling the user about — everything except ``routine``.
     public private(set) var total = 0
     /// How many of them granting Full Disk Access would actually make readable. The rest are
     /// refused by ordinary filesystem permissions, which that grant doesn't affect.
     public private(set) var resolvableByFullDiskAccess = 0
     public private(set) var sample: [Entry] = []
+    /// Directories skipped for reasons the user can do nothing about — see ``RoutineSkips``.
+    /// Counted so the total can still be accounted for, but kept out of the headline.
+    public private(set) var routine = 0
 
     public init() {}
 
@@ -33,6 +37,11 @@ public struct SkippedDirectories: Sendable, Equatable {
     public var exceedsSample: Bool { total > sample.count }
 
     public mutating func record(url: URL, failure: DirectoryReadFailure) {
+        guard !RoutineSkips.isRoutine(url) else {
+            routine += 1
+            return
+        }
+
         total += 1
         if failure.isResolvedByFullDiskAccess {
             resolvableByFullDiskAccess += 1

@@ -72,6 +72,19 @@ struct SkippedFoldersBanner: View {
             """
     }
 
+    /// Accounts for what the list doesn't show: entries beyond the retained sample, and the
+    /// routine system folders deliberately kept out of the headline.
+    private var footnote: String? {
+        var parts: [String] = []
+        if skipped.exceedsSample {
+            parts.append("\(skipped.total - skipped.sample.count) more not listed")
+        }
+        if skipped.routine > 0 {
+            parts.append("\(skipped.routine) system folder\(skipped.routine == 1 ? "" : "s") skipped as routine")
+        }
+        return parts.isEmpty ? nil : "…\(parts.joined(separator: ", "))"
+    }
+
     private var pathList: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
@@ -83,8 +96,8 @@ struct SkippedFoldersBanner: View {
             }
             .frame(maxHeight: 180)
 
-            if skipped.exceedsSample {
-                Text("…and \(skipped.total - skipped.sample.count) more")
+            if let footnote {
+                Text(footnote)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)

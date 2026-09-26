@@ -54,24 +54,22 @@ public struct DirectoryScanner: Sendable {
         onEvent: (@Sendable (ScanEvent) -> Void)?
     ) async throws -> FileNode {
         await semaphore.acquire()
-        let entryNames: [String]
-        do {
-            entryNames = try FileManager.default.contentsOfDirectory(atPath: path)
-        } catch {
-            await semaphore.release()
+        let entryNames = Self.directoryEntryNames(path)
+        await semaphore.release()
+
+        guard let entryNames else {
             onEvent?(.permissionDenied(path: url))
             return FileNode(
                 url: url, name: url.lastPathComponent, isDirectory: true, isSymbolicLink: false,
                 logicalSize: 0, physicalSize: 0, children: [], fileCount: 0
             )
         }
-        await semaphore.release()
 
         var fileChildren: [FileNode] = []
         var subdirectories: [(path: String, url: URL)] = []
 
         for name in entryNames {
-            let childPath = path + "/" + name
+            let childPath = Self.childPath(in: path, name: name)
             guard let st = Self.lstatInfo(childPath) else { continue }
             let childURL = url.appendingPathComponent(name)
 
@@ -138,6 +136,42 @@ public struct DirectoryScanner: Sendable {
             children: [],
             fileCount: 1
         )
+    }
+
+    /// Lists a directory's entry names, or `nil` if it can't be opened at all.
+    ///
+    /// Uses `readdir` rather than `FileManager.contentsOfDirectory`, which resolves a path
+    /// *through* its own final component. That difference matters at the boot volume's root:
+    /// `/.nofollow` is macOS's firmlink-free view of the volume, an empty directory to `ls`,
+    /// `find` and `du` alike, but `contentsOfDirectory` reports it as holding all of `/` — so
+    /// the scan walks the entire volume a second time under that name. `readdir` sees it
+    /// empty, as it actually is.
+    private static func directoryEntryNames(_ path: String) -> [String]? {
+        guard let directory = opendir(path) else { return nil }
+        defer { closedir(directory) }
+
+        var names: [String] = []
+        while let entry = readdir(directory) {
+            let name = withUnsafeBytes(of: entry.pointee.d_name) { raw in
+                String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+            }
+            guard name != ".", name != ".." else { continue }
+            names.append(name)
+        }
+        return names
+    }
+
+    /// Joins a directory path and an entry name without doubling the separator when the
+    /// directory is the filesystem root, whose path is already "/".
+    ///
+    /// Not cosmetic: the mount-table check in ``scanDirectory`` compares these strings
+    /// against `getmntinfo` output, so a scan rooted at "/" building "//System/Volumes/Data"
+    /// silently fails to match the table's "/System/Volumes/Data". `lstat` resolves the
+    /// doubled slash happily and the Data volume shares its st_dev with the sealed system
+    /// volume, so nothing else catches it — the scan crosses into the Data volume and counts
+    /// every firmlinked file (the whole of /Users, /Applications, /Library, …) a second time.
+    static func childPath(in directoryPath: String, name: String) -> String {
+        directoryPath.hasSuffix("/") ? directoryPath + name : directoryPath + "/" + name
     }
 
     private static func lstatInfo(_ path: String) -> stat? {

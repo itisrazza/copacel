@@ -87,3 +87,48 @@ private final class DeniedPathCollector: @unchecked Sendable {
         return paths
     }
 }
+
+struct ChildPathCase: Sendable, CustomStringConvertible {
+    let directoryPath: String
+    let name: String
+    let expected: String
+
+    var description: String { "\(directoryPath) + \(name) -> \(expected)" }
+}
+
+/// A scan rooted at "/" used to build "//System/Volumes/Data", which never matches the
+/// mount table's "/System/Volumes/Data" — so the scanner crossed into the Data volume and
+/// counted every firmlinked file twice.
+@Test(arguments: [
+    ChildPathCase(directoryPath: "/", name: "System", expected: "/System"),
+    ChildPathCase(directoryPath: "/", name: "Users", expected: "/Users"),
+    ChildPathCase(directoryPath: "/System/Volumes", name: "Data", expected: "/System/Volumes/Data"),
+    ChildPathCase(directoryPath: "/tmp/folder", name: "file.txt", expected: "/tmp/folder/file.txt"),
+    ChildPathCase(directoryPath: "/tmp/folder/", name: "file.txt", expected: "/tmp/folder/file.txt")
+])
+func childPathNeverDoublesTheSeparator(testCase: ChildPathCase) {
+    #expect(DirectoryScanner.childPath(in: testCase.directoryPath, name: testCase.name) == testCase.expected)
+}
+
+@Test func pathsBuiltFromTheFilesystemRootMatchTheMountTable() {
+    // The mount-table comparison is the only guard against crossing into the Data volume,
+    // since it shares st_dev with the sealed system volume it's firmlinked into. That guard
+    // is a string match, so descending from "/" has to produce table-shaped paths.
+    var path = URL(fileURLWithPath: "/").path
+    for component in ["System", "Volumes", "Data"] {
+        path = DirectoryScanner.childPath(in: path, name: component)
+    }
+    #expect(path == "/System/Volumes/Data")
+}
+
+/// `/.nofollow` is macOS's firmlink-free view of the boot volume: an empty directory to `ls`,
+/// `find` and `du`, but `FileManager.contentsOfDirectory` resolves through it and reports the
+/// whole of `/`. Scanning the boot volume then counted every file on it a second time.
+@Test(.enabled(if: FileManager.default.fileExists(atPath: "/.nofollow")))
+func firmlinkFreeRootViewScansAsTheEmptyDirectoryItIs() async throws {
+    let node = try await DirectoryScanner().scan(root: URL(fileURLWithPath: "/.nofollow"))
+
+    #expect(node.children.isEmpty)
+    #expect(node.physicalSize == 0)
+    #expect(node.fileCount == 0)
+}

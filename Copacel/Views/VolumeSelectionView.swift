@@ -15,10 +15,10 @@ struct VolumeSelectionView: View {
                 Image(systemName: "internaldrive")
                     .font(.system(size: 48))
                     .foregroundStyle(.tint)
-                Text("Choose a Volume to Scan")
+                Text("Choose What to Scan")
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("Select a mounted volume to analyze disk usage")
+                Text("Start with your own files, or scan a whole volume")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -34,6 +34,15 @@ struct VolumeSelectionView: View {
 
             ScrollView {
                 VStack(spacing: 12) {
+                    // Offered first because it's usually what's wanted: a whole-volume scan
+                    // buries your own files under system folders you can't do anything about.
+                    HomeFolderRow {
+                        onSelectVolume(FileManager.default.homeDirectoryForCurrentUser)
+                    }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
                     ForEach(volumes) { volume in
                         VolumeRow(volume: volume) {
                             onSelectVolume(volume.url)
@@ -199,6 +208,42 @@ struct VolumeRow: View {
     .frame(width: 640, height: 500)
 }
 
+
+/// A one-click scan of the user's own files, which is the common case for "what filled my
+/// disk" — whole-volume scans are mostly system folders that can't be reclaimed anyway.
+private struct HomeFolderRow: View {
+    let action: () -> Void
+
+    private var home: URL { FileManager.default.homeDirectoryForCurrentUser }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "house.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.tint)
+                    .frame(width: 40)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Home Folder")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Label(home.path, systemImage: "person.crop.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.tint.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
 
 /// Shown before a scan starts, so the shortfall is known up front rather than discovered
 /// from a banner once the results are already wrong.
